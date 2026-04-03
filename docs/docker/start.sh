@@ -1,32 +1,50 @@
 #!/bin/bash
 
-# --- 数据库配置 (Railway 环境自动适配) ---
-# 使用 Railway 注入的变量，否则回退到默认值
-MYSQL_URL_FINAL=${SPRING_DATASOURCE_DRUID_URL:-"jdbc:mysql://${MYSQLHOST:-localhost}:${MYSQLPORT:-3306}/${MYSQLDATABASE:-xiaozhi_esp32_server}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&nullCatalogMeansCurrent=true"}
-MYSQL_USER_FINAL=${SPRING_DATASOURCE_DRUID_USERNAME:-${MYSQLUSER:-root}}
-MYSQL_PASS_FINAL=${SPRING_DATASOURCE_DRUID_PASSWORD:-${MYSQLPASSWORD:-123456}}
+# --- 🚀 调试模式: 打印环境变量 (Debug Mode) ---
+echo "--- ENVIRONMENT CHECK ---"
+echo "MYSQLHOST: $MYSQLHOST"
+echo "MYSQLPORT: $MYSQLPORT"
+echo "MYSQLDATABASE: $MYSQLDATABASE"
+echo "MYSQLUSER: $MYSQLUSER"
+echo "REDISHOST: $REDISHOST"
+echo "PORT: $PORT"
+echo "--------------------------"
 
-REDIS_HOST_FINAL=${SPRING_DATA_REDIS_HOST:-${REDISHOST:-localhost}}
-REDIS_PORT_FINAL=${SPRING_DATA_REDIS_PORT:-${REDISPORT:-6379}}
-REDIS_PASS_FINAL=${SPRING_DATA_REDIS_PASSWORD:-${REDISPASSWORD:-""}}
+# --- 🎯 数据库配置 (Railway 环境自动适配) ---
+# 检查默认数据库名是否为 railway
+DB_NAME=${MYSQLDATABASE:-"xiaozhi_esp32_server"}
+if [ "$MYSQLDATABASE" == "railway" ]; then
+    echo "Using default Railway database name: railway"
+    DB_NAME="railway"
+fi
 
-# --- 等待数据库准备就绪 (解决应用启动过快导致崩溃) ---
+MYSQL_URL_FINAL="jdbc:mysql://${MYSQLHOST:-localhost}:${MYSQLPORT:-3306}/${DB_NAME}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&nullCatalogMeansCurrent=true"
+echo "Connecting to MySQL at: ${MYSQL_URL_FINAL}"
+
+MYSQL_USER_FINAL=${MYSQLUSER:-root}
+MYSQL_PASS_FINAL=${MYSQLPASSWORD:-123456}
+
+REDIS_HOST_FINAL=${REDISHOST:-localhost}
+REDIS_PORT_FINAL=${REDISPORT:-6379}
+REDIS_PASS_FINAL=${REDISPASSWORD:-""}
+
+# --- 🛡️ 等待数据库准备就绪 (解决应用启动过快导致崩溃) ---
 if [ ! -z "$MYSQLHOST" ]; then
-    echo "Waiting for MySQL at ${MYSQLHOST}:${MYSQLPORT:-3306}..."
-    # 使用 bash 的 /dev/tcp 特性进行探测
+    echo "Probing MySQL at ${MYSQLHOST}:${MYSQLPORT:-3306}..."
     for i in {1..30}; do
         if bash -c "exec 6<>/dev/tcp/${MYSQLHOST}/${MYSQLPORT:-3306}" 2>/dev/null; then
-            echo "MySQL is ready!"
+            echo "✅ MySQL is ready and responding!"
             exec 6>&-
             break
         fi
-        echo "MySQL not ready yet, retrying in 2s..."
+        echo "⏳ MySQL not ready yet (attempt $i/30), retrying in 2s..."
         sleep 2
     done
 fi
 
-# 启动 Java 后端 (监听 8003，仅对 Nginx 内部开放)
-echo "Starting Java Backend on port 8003..."
+# --- 🏃 启动 Java 后端 ---
+echo "Starting Java Backend on internal port 8003..."
+# 使用 nohup 运行并重定向输出以便调试
 java -jar /app/xiaozhi-esp32-api.jar \
   --server.port=8003 \
   --spring.datasource.druid.url="${MYSQL_URL_FINAL}" \
@@ -36,12 +54,20 @@ java -jar /app/xiaozhi-esp32-api.jar \
   --spring.data.redis.password="${REDIS_PASS_FINAL}" \
   --spring.data.redis.port="${REDIS_PORT_FINAL}" &
 
-# 适配 Railway 动态分配的公共端口
+# 等待后端端口检查
+sleep 5
+if bash -c "exec 6<>/dev/tcp/127.0.0.1/8003" 2>/dev/null; then
+    echo "✅ Java Backend is UP on port 8003!"
+else
+    echo "⚠️ Java Backend is NOT responding on port 8003 yet. Check JAR logs."
+fi
+
+# --- 🕸️ 适配 Railway 动态分配的公共端口 ---
 if [ ! -z "$PORT" ]; then
     echo "Adapting Nginx to Railway's public port: $PORT"
     sed -i "s/listen  8002;/listen ${PORT};/" /etc/nginx/nginx.conf
 fi
 
-# 启动 Nginx (前台运行保持容器活动)
+# --- 启动 Nginx ---
 echo "Starting Nginx..."
 nginx -g 'daemon off;'
