@@ -1,7 +1,8 @@
-# 生产镜像，仅包含应用代码
-FROM ghcr.io/xinnan-tech/xiaozhi-esp32-server:server-base
+# 使用预编译好的 Python 服务端镜像，大幅减小部署难度和内存消耗 (自带 SenseVoiceSmall 模型)
+FROM ghcr.io/xinnan-tech/xiaozhi-esp32-server:server_latest
 
-COPY main/xiaozhi-server .
+# 复制并覆盖配置文件
+COPY main/xiaozhi-server/config.yaml /app/config.yaml
 
-# 启动应用
+# 启动 (App.py 之前已经修改过，会读取 Railway 分配的 $PORT)
 CMD ["python", "app.py"]
