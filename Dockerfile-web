@@ -11,5 +11,5 @@ RUN chmod +x /start.sh
 # 告诉 Railway 默认监听 8002
 EXPOSE 8002
 
-# 启动 (start.sh 已包含动态端口适配逻辑和数据库等待逻辑)
-CMD ["/start.sh"]
+# 强制使用我们的启动脚本作为入口
+ENTRYPOINT ["/bin/bash", "/start.sh"]

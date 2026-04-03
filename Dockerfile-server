@@ -5,4 +5,4 @@ FROM ghcr.io/xinnan-tech/xiaozhi-esp32-server:server_latest
 COPY main/xiaozhi-server/config.yaml /app/config.yaml
 
 # 启动 (App.py 之前已经修改过，会读取 Railway 分配的 $PORT)
-CMD ["python", "app.py"]
+ENTRYPOINT ["python", "app.py"]
