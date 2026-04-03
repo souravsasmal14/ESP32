@@ -29,7 +29,22 @@ def load_config():
 
     # 加载默认配置
     default_config = read_config(default_config_path)
-    custom_config = read_config(custom_config_path)
+    
+    # 获取用户自定义路径或通过环境变量注入
+    if os.path.exists(custom_config_path):
+        custom_config = read_config(custom_config_path)
+    else:
+        custom_config = {}
+
+    # 支持环境变量覆盖 (Railway/Docker 友好)
+    env_api_url = os.environ.get("MANAGER_API_URL")
+    env_api_secret = os.environ.get("MANAGER_API_SECRET")
+    
+    if env_api_url and env_api_secret:
+        if "manager-api" not in custom_config:
+            custom_config["manager-api"] = {}
+        custom_config["manager-api"]["url"] = env_api_url
+        custom_config["manager-api"]["secret"] = env_api_secret
 
     if custom_config.get("manager-api", {}).get("url"):
         import asyncio

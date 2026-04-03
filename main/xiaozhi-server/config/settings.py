@@ -14,9 +14,10 @@ def check_config_file():
     简化的配置检查，仅提示用户配置文件的使用情况
     """
     custom_config_file = get_project_dir() + "data/." + default_config_file
-    if not os.path.exists(custom_config_file):
+    if not os.path.exists(custom_config_file) and not (os.environ.get("MANAGER_API_URL") and os.environ.get("MANAGER_API_SECRET")):
+        # 如果既没有配置文件，也没有环境变量，则报错
         raise FileNotFoundError(
-            "找不到data/.config.yaml文件，请按教程确认该配置文件是否存在"
+            "找不到data/.config.yaml文件且没有配置MANAGER_API_URL环境变量，请确认配置"
         )
 
     # 检查是否从API读取配置

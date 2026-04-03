@@ -100,11 +100,9 @@ async def main():
             logger.bind(tag=TAG).error("mcp接入点不符合规范")
             config["mcp_endpoint"] = "你的接入点 websocket地址"
 
-    # 获取WebSocket配置，使用安全的默认值
-    websocket_port = 8000
-    server_config = config.get("server", {})
-    if isinstance(server_config, dict):
-        websocket_port = int(server_config.get("port", 8000))
+    # 获取WebSocket配置，优先使用环境变量PORT (Railway支持)
+    import os
+    websocket_port = int(os.environ.get("PORT", server_config.get("port", 8000)))
 
     logger.bind(tag=TAG).info(
         "Websocket地址是\tws://{}:{}/xiaozhi/v1/",
