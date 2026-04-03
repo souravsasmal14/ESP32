@@ -1,33 +1,33 @@
 #!/bin/bash
 
-# --- 🚀 NUCLEAR CONNECTION OPTION: HARDCODED CREDENTIALS ---
-# This forces the app to look exactly at Railway's internal network, bypassing ALL configurations.
+# --- 🎯 强制生产环境配置 (PROD OVERRIDE) ---
+# 使用 Spring Boot 宽松绑定属性，确保覆盖 application.yml
+export SPRING_PROFILES_ACTIVE=prod
 
-export SPRING_DATASOURCE_DRUID_URL="jdbc:mysql://mysql.railway.internal:3306/railway?allowPublicKeyRetrieval=true&useSSL=false&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai"
+# 数据库
+export SPRING_DATASOURCE_DRUID_URL="jdbc:mysql://mysql.railway.internal:3306/railway?allowPublicKeyRetrieval=true&useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai"
 export SPRING_DATASOURCE_DRUID_USERNAME="root"
 export SPRING_DATASOURCE_DRUID_PASSWORD="sLCTiEareeqSjFEwftJTeuGbUeylEjId"
 
-export SPRING_DATA_REDIS_URL="redis://default:hurbSCLJsRDHppIllmbNeEwJKzkyRwlS@redis.railway.internal:6379"
+# Redis
+export SPRING_DATA_REDIS_HOST="redis.railway.internal"
+export SPRING_DATA_REDIS_PORT="6379"
+export SPRING_DATA_REDIS_PASSWORD="hurbSCLJsRDHppIllmbNeEwJKzkyRwlS"
 
-export SPRING_PROFILES_ACTIVE=prod
+echo "🚀 Starting Java Backend with Hardcoded Railway Internal Config..."
+java -Dserver.port=8002 -jar /app/xiaozhi-esp32-api.jar &
 
-echo "--- 🛠️ DEBUG: Connection Params ---"
-echo "Spring Datasource URL is hardcoded to Railway internal."
-echo "-----------------------------------"
+# 等待 Java 启动
+sleep 5
 
-# --- 🏃 Start Java Backend ---
-echo "Starting Java Backend on port 8003..."
-java -jar /app/xiaozhi-esp32-api.jar --server.port=8003 &
-
-# --- 🛰️ Configure Nginx ---
+# --- 🕸️ Nginx 配置 ---
 if [ ! -z "$PORT" ]; then
-    echo "Updating Nginx for Railway public port: $PORT"
+    echo "🌐 Setting Nginx to listen on Railway Port: $PORT"
     sed -i "s/listen  8002;/listen ${PORT};/" /etc/nginx/nginx.conf
 fi
 
-# Ensure Nginx proxies to the correct port (8003)
-sed -i 's/proxy_pass http:\/\/127.0.0.1:8002;/proxy_pass http:\/\/127.0.0.1:8003;/' /etc/nginx/nginx.conf
+# 确保代理指向 8002
+sed -i 's/proxy_pass http:\/\/127.0.0.1:[0-9]*;/proxy_pass http:\/\/127.0.0.1:8002;/' /etc/nginx/nginx.conf
 
-# --- Start Nginx ---
-echo "Starting Nginx frontend..."
+echo "✨ Starting Nginx Service..."
 nginx -g 'daemon off;'
